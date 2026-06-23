@@ -1,15 +1,41 @@
 // API Base URL
 const API_URL = 'http://localhost:5026';
 
+// JWT Helper functions
+function parseJwt(token) {
+    try {
+        const base64Url = token.split('.')[1];
+        const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+        const jsonPayload = decodeURIComponent(window.atob(base64).split('').map(function(c) {
+            return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+        }).join(''));
+        return JSON.parse(jsonPayload);
+    } catch {
+        return null;
+    }
+}
+
+function isUserAdmin(token) {
+    const decoded = parseJwt(token);
+    if (!decoded) return false;
+    const rolesClaim = decoded['http://schemas.microsoft.com/ws/2008/06/identity/claims/role'] || decoded['role'];
+    if (!rolesClaim) return false;
+    if (Array.isArray(rolesClaim)) {
+        return rolesClaim.includes('Admin');
+    }
+    return rolesClaim === 'Admin';
+}
+
 // Global Application State
 const state = {
     token: localStorage.getItem('token') || null,
     userEmail: localStorage.getItem('userEmail') || null,
     userFirstName: localStorage.getItem('userFirstName') || null,
+    isAdmin: localStorage.getItem('token') ? isUserAdmin(localStorage.getItem('token')) : false,
     cart: null,
     currentPage: 1,
     pageSize: 6,
-    activeView: 'catalog', // 'catalog' or 'orders'
+    activeView: 'catalog', // 'catalog' or 'orders' or 'admin'
     searchQuery: '',
     categoryId: '',
     brandId: '',
@@ -198,6 +224,20 @@ function setupEventListeners() {
     // Payment Simulations
     document.getElementById('btn-pay-success').addEventListener('click', () => processMockPayment(true));
     document.getElementById('btn-pay-fail').addEventListener('click', () => processMockPayment(false));
+
+    // Admin Dashboard Navigation
+    document.getElementById('btn-admin-dash').addEventListener('click', () => switchView('admin'));
+    document.getElementById('btn-admin-back-to-shop').addEventListener('click', () => switchView('catalog'));
+    
+    // Admin Panel Subviews Switcher
+    document.getElementById('btn-admin-tab-products').addEventListener('click', () => switchAdminTab('products'));
+    document.getElementById('btn-admin-tab-orders').addEventListener('click', () => switchAdminTab('orders'));
+
+    // Admin Product CRUD Actions
+    document.getElementById('btn-add-product').addEventListener('click', () => openProductModal());
+    document.getElementById('btn-product-modal-close').addEventListener('click', () => closeModal('product-modal'));
+    document.getElementById('product-modal-overlay').addEventListener('click', () => closeModal('product-modal'));
+    document.getElementById('form-product').addEventListener('submit', saveProduct);
 }
 
 // --- View Router ---
@@ -208,19 +248,29 @@ function switchView(view) {
     const heroSec = document.getElementById('hero-banner');
     const filtersSec = document.querySelector('.filters-container');
     const ordersSec = document.getElementById('section-orders');
+    const adminSec = document.getElementById('section-admin');
 
     if (view === 'catalog') {
         catalogSec.classList.remove('hide');
         heroSec.classList.remove('hide');
         filtersSec.classList.remove('hide');
         ordersSec.classList.add('hide');
+        adminSec.classList.add('hide');
         loadCatalog();
     } else if (view === 'orders') {
         catalogSec.classList.add('hide');
         heroSec.classList.add('hide');
         filtersSec.classList.add('hide');
         ordersSec.classList.remove('hide');
+        adminSec.classList.add('hide');
         loadOrders();
+    } else if (view === 'admin') {
+        catalogSec.classList.add('hide');
+        heroSec.classList.add('hide');
+        filtersSec.classList.add('hide');
+        ordersSec.classList.add('hide');
+        adminSec.classList.remove('hide');
+        switchAdminTab('products');
     }
 }
 
@@ -399,15 +449,22 @@ function updateAuthUI() {
     const authBtn = document.getElementById('btn-auth');
     const authLabel = document.getElementById('auth-label');
     const btnOrders = document.getElementById('btn-orders');
+    const btnAdminDash = document.getElementById('btn-admin-dash');
 
     if (state.token) {
         authLabel.textContent = `Sign Out (${state.userFirstName || 'User'})`;
         authBtn.classList.add('active');
         btnOrders.classList.remove('hide');
+        if (state.isAdmin) {
+            btnAdminDash.classList.remove('hide');
+        } else {
+            btnAdminDash.classList.add('hide');
+        }
     } else {
         authLabel.textContent = 'Sign In';
         authBtn.classList.remove('active');
         btnOrders.classList.add('hide');
+        btnAdminDash.classList.add('hide');
         switchView('catalog'); // return to catalog view if logged out
     }
 }
@@ -442,6 +499,7 @@ async function handleLogin(e) {
         state.token = data.token;
         state.userEmail = data.email;
         state.userFirstName = data.firstName;
+        state.isAdmin = isUserAdmin(data.token);
         
         localStorage.setItem('token', data.token);
         localStorage.setItem('userEmail', data.email);
@@ -480,6 +538,7 @@ async function handleRegister(e) {
         state.token = data.token;
         state.userEmail = data.email;
         state.userFirstName = data.firstName;
+        state.isAdmin = isUserAdmin(data.token);
 
         localStorage.setItem('token', data.token);
         localStorage.setItem('userEmail', data.email);
@@ -500,6 +559,7 @@ function logout() {
     state.token = null;
     state.userEmail = null;
     state.userFirstName = null;
+    state.isAdmin = false;
     state.cart = null;
 
     localStorage.removeItem('token');
@@ -785,3 +845,220 @@ function openModal(id) {
 function closeModal(id) {
     document.getElementById(id).classList.remove('open');
 }
+
+// --- Admin Dashboard Logic ---
+
+// Toggle between Products and Orders tabs in Admin Panel
+window.switchAdminTab = (tab) => {
+    const prodTabBtn = document.getElementById('btn-admin-tab-products');
+    const orderTabBtn = document.getElementById('btn-admin-tab-orders');
+    const prodView = document.getElementById('admin-products-view');
+    const orderView = document.getElementById('admin-orders-view');
+
+    if (tab === 'products') {
+        prodTabBtn.className = 'auth-btn';
+        orderTabBtn.className = 'header-btn';
+        prodView.classList.remove('hide');
+        orderView.classList.add('hide');
+        loadAdminProducts();
+    } else {
+        prodTabBtn.className = 'header-btn';
+        orderTabBtn.className = 'auth-btn';
+        prodView.classList.add('hide');
+        orderView.classList.remove('hide');
+        loadAdminOrders();
+    }
+};
+
+// Fetch and render products inside Admin Table
+async function loadAdminProducts() {
+    const list = document.getElementById('admin-products-list');
+    list.innerHTML = `<tr><td colspan="7" style="text-align:center;">Loading products...</td></tr>`;
+
+    try {
+        const response = await fetch(`${API_URL}/api/Products?pageNumber=1&pageSize=100`);
+        if (!response.ok) throw new Error('Failed to fetch products');
+        const products = await response.json();
+
+        if (products.length === 0) {
+            list.innerHTML = `<tr><td colspan="7" style="text-align:center;">No products available.</td></tr>`;
+            return;
+        }
+
+        list.innerHTML = products.map(p => `
+            <tr>
+                <td>${p.id}</td>
+                <td><strong>${p.name}</strong></td>
+                <td><span class="results-meta">${p.categoryName}</span></td>
+                <td><span class="results-meta">${p.brandName}</span></td>
+                <td>$${p.price.toFixed(2)}</td>
+                <td>${p.stockQuantity}</td>
+                <td>
+                    <div class="action-btn-group">
+                        <button class="btn-edit" onclick="openProductModal(${p.id})"><i class="fa-regular fa-pen-to-square"></i> Edit</button>
+                        <button class="btn-delete" onclick="deleteProduct(${p.id}, '${p.name.replace(/'/g, "\\'")}')"><i class="fa-regular fa-trash-can"></i> Delete</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+    } catch (err) {
+        list.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--accent-red);">Failed to load products.</td></tr>`;
+    }
+}
+
+// Open Product Form Modal in Create or Edit Mode
+window.openProductModal = async (productId = null) => {
+    const modalTitle = document.getElementById('product-modal-title');
+    const form = document.getElementById('form-product');
+    form.reset();
+
+    if (productId === null) {
+        // Create Mode
+        modalTitle.textContent = 'Add New Product';
+        document.getElementById('prod-id').value = '';
+        openModal('product-modal');
+    } else {
+        // Edit Mode
+        modalTitle.textContent = 'Edit Product';
+        document.getElementById('prod-id').value = productId;
+        
+        try {
+            const product = await apiCall(`/api/Products/${productId}`);
+            document.getElementById('prod-name').value = product.name;
+            document.getElementById('prod-desc').value = product.description;
+            document.getElementById('prod-price').value = product.price;
+            document.getElementById('prod-stock').value = product.stockQuantity;
+            document.getElementById('prod-img').value = product.imageUrl;
+            document.getElementById('prod-category').value = product.categoryId;
+            document.getElementById('prod-brand').value = product.brandId;
+            
+            openModal('product-modal');
+        } catch (err) {
+            showToast('Failed to load product details.', 'error');
+        }
+    }
+};
+
+// Save Product (Create or Edit)
+async function saveProduct(e) {
+    e.preventDefault();
+    const id = document.getElementById('prod-id').value;
+    const name = document.getElementById('prod-name').value;
+    const description = document.getElementById('prod-desc').value;
+    const price = parseFloat(document.getElementById('prod-price').value);
+    const stockQuantity = parseInt(document.getElementById('prod-stock').value);
+    const imageUrl = document.getElementById('prod-img').value;
+    const categoryId = parseInt(document.getElementById('prod-category').value);
+    const brandId = parseInt(document.getElementById('prod-brand').value);
+
+    const payload = {
+        name,
+        description,
+        price,
+        imageUrl,
+        stockQuantity,
+        categoryId,
+        brandId
+    };
+
+    try {
+        if (!id) {
+            await apiCall('/api/Products', 'POST', payload, true);
+            showToast(`Product '${name}' created successfully.`);
+        } else {
+            payload.id = parseInt(id);
+            await apiCall(`/api/Products/${id}`, 'PUT', payload, true);
+            showToast(`Product '${name}' updated successfully.`);
+        }
+        closeModal('product-modal');
+        loadAdminProducts();
+        loadCatalog();
+    } catch (err) {
+        showToast(err.message || 'Failed to save product.', 'error');
+    }
+}
+
+// Delete Product
+window.deleteProduct = async (id, name) => {
+    if (!confirm(`Are you sure you want to delete '${name}'?`)) return;
+
+    try {
+        await apiCall(`/api/Products/${id}`, 'DELETE', null, true);
+        showToast(`Product '${name}' deleted successfully.`);
+        loadAdminProducts();
+        loadCatalog();
+    } catch (err) {
+        showToast(err.message || 'Failed to delete product.', 'error');
+    }
+};
+
+// Fetch and render customer orders inside Admin Table
+async function loadAdminOrders() {
+    const list = document.getElementById('admin-orders-list');
+    list.innerHTML = `<tr><td colspan="7" style="text-align:center;">Loading orders...</td></tr>`;
+
+    try {
+        const orders = await apiCall('/api/Orders/admin-all', 'GET', null, true);
+
+        if (orders.length === 0) {
+            list.innerHTML = `<tr><td colspan="7" style="text-align:center;">No orders placed yet.</td></tr>`;
+            return;
+        }
+
+        list.innerHTML = orders.map(o => {
+            const dateStr = new Date(o.orderDate).toLocaleDateString(undefined, {
+                year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+            });
+
+            const itemsList = o.orderItems.map(item => `
+                <li>${item.productName} <strong>x${item.quantity}</strong></li>
+            `).join('');
+
+            // Status select choices
+            const statuses = ['Pending', 'PaymentReceived', 'PaymentFailed', 'Shipped', 'Cancelled'];
+            const selectOptions = statuses.map(s => `
+                <option value="${s}" ${o.status === s ? 'selected' : ''}>${s}</option>
+            `).join('');
+
+            return `
+                <tr>
+                    <td><strong>#${o.id}</strong></td>
+                    <td>${dateStr}</td>
+                    <td>${o.userId}</td>
+                    <td><strong>$${o.total.toFixed(2)}</strong></td>
+                    <td><span class="order-status-badge ${getStatusClass(o.status)}">${o.status}</span></td>
+                    <td>
+                        <ul class="admin-orders-items-list">
+                            ${itemsList}
+                        </ul>
+                    </td>
+                    <td>
+                        <select class="status-select" onchange="updateOrderStatus(${o.id}, this.value)">
+                            ${selectOptions}
+                        </select>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    } catch (err) {
+        list.innerHTML = `<tr><td colspan="7" style="text-align:center; color: var(--accent-red);">Failed to load orders.</td></tr>`;
+    }
+}
+
+// Helper status CSS class mapper
+function getStatusClass(status) {
+    if (status === 'Completed' || status === 'Shipped' || status === 'PaymentReceived') return 'status-completed';
+    if (status === 'Failed' || status === 'Cancelled' || status === 'PaymentFailed') return 'status-failed';
+    return 'status-pending';
+}
+
+// Update order status via PUT API call
+window.updateOrderStatus = async (orderId, newStatus) => {
+    try {
+        await apiCall(`/api/Orders/${orderId}/status/${newStatus}`, 'PUT', null, true);
+        showToast(`Order #${orderId} status updated to ${newStatus}.`);
+        loadAdminOrders();
+    } catch (err) {
+        showToast(err.message || 'Failed to update order status.', 'error');
+    }
+};

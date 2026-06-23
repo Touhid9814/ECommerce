@@ -133,4 +133,33 @@ public class OrderService : IOrderService
 
         return orders.Select(o => o.ToDto()).ToList();
     }
+
+    public async Task<IEnumerable<OrderDto>> GetAllOrdersAsync()
+    {
+        var orders = await _context.Orders
+            .Include(o => o.OrderItems)
+                .ThenInclude(oi => oi.Product)
+            .OrderByDescending(o => o.OrderDate)
+            .ToListAsync();
+
+        return orders.Select(o => o.ToDto()).ToList();
+    }
+
+    public async Task UpdateOrderStatusAsync(int orderId, string status)
+    {
+        var order = await _context.Orders.FindAsync(orderId);
+        if (order == null)
+        {
+            throw new NotFoundException($"Order with ID {orderId} not found.");
+        }
+
+        if (!Enum.TryParse<OrderStatus>(status, true, out var orderStatus))
+        {
+            throw new Exception($"Invalid order status. Supported: {string.Join(", ", Enum.GetNames(typeof(OrderStatus)))}");
+        }
+
+        order.Status = orderStatus;
+        order.UpdatedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+    }
 }

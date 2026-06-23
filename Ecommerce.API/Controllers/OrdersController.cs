@@ -58,4 +58,27 @@ public class OrdersController : ControllerBase
         var orders = await _orderService.GetOrdersForUserAsync(userId);
         return Ok(orders);
     }
+
+    [HttpGet("admin-all")]
+    [Authorize(Roles = "Admin")]
+    public async Task<ActionResult<IEnumerable<OrderDto>>> GetAllOrders()
+    {
+        var orders = await _orderService.GetAllOrdersAsync();
+        return Ok(orders);
+    }
+
+    [HttpPut("{id}/status/{status}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> UpdateOrderStatus(int id, string status)
+    {
+        try
+        {
+            await _orderService.UpdateOrderStatusAsync(id, status);
+            return Ok(new { Message = $"Order #{id} status updated to {status}." });
+        }
+        catch (System.Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
 }
