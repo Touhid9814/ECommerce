@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Ecommerce.Application.DTOs;
 using Ecommerce.Application.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using FluentValidation;
 using System;
 using System.Linq;
@@ -48,6 +49,21 @@ public class AuthController : ControllerBase
         {
             var response = await _authService.LoginAsync(dto);
             return Ok(response);
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { Message = ex.Message });
+        }
+    }
+
+    [HttpPost("assign-role")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> AssignRole(RoleAssignmentDto dto)
+    {
+        try
+        {
+            await _authService.AssignRoleAsync(dto.Email, dto.Role);
+            return Ok(new { Message = $"Role {dto.Role} successfully assigned to user {dto.Email}." });
         }
         catch (Exception ex)
         {

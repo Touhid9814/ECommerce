@@ -92,6 +92,27 @@ public class AuthService : IAuthService
         };
     }
 
+    public async Task AssignRoleAsync(string email, string roleName)
+    {
+        if (roleName != "Admin" && roleName != "Customer")
+        {
+            throw new Exception("Invalid role name. Only 'Admin' and 'Customer' are supported.");
+        }
+
+        var user = await _userManager.FindByEmailAsync(email);
+        if (user == null)
+        {
+            throw new Exception("User not found.");
+        }
+
+        var result = await _userManager.AddToRoleAsync(user, roleName);
+        if (!result.Succeeded)
+        {
+            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
+            throw new Exception($"Failed to assign role: {errors}");
+        }
+    }
+
     private string GenerateJwtToken(AppUser user, IList<string> roles)
     {
         var claims = new List<Claim>
