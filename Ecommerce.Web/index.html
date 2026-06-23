@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ApexShop - Premium Storefront</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Premium Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="index.css">
+</head>
+<body class="dark-theme">
+    
+    <!-- Toast Notification System -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <!-- Navigation Header -->
+    <header class="main-header">
+        <div class="header-container">
+            <div class="logo" id="btn-home">
+                <span class="logo-accent"><i class="fa-solid fa-bolt"></i></span>
+                Apex<span class="logo-light">Shop</span>
+            </div>
+            
+            <div class="search-bar">
+                <input type="text" id="search-input" placeholder="Search premium items...">
+                <button type="button" id="search-btn"><i class="fa-solid fa-magnifying-glass"></i></button>
+            </div>
+            
+            <div class="header-actions">
+                <button id="btn-orders" class="header-btn hide" title="View Orders">
+                    <i class="fa-solid fa-receipt"></i>
+                    <span>Orders</span>
+                </button>
+                
+                <button id="btn-cart-toggle" class="header-btn cart-badge-btn" title="Open Cart">
+                    <i class="fa-solid fa-bag-shopping"></i>
+                    <span id="cart-count" class="cart-count">0</span>
+                </button>
+                
+                <button id="btn-auth" class="auth-btn">
+                    <i class="fa-regular fa-user"></i>
+                    <span id="auth-label">Sign In</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+        <!-- Hero Banner -->
+        <section class="hero-banner" id="hero-banner">
+            <div class="hero-content">
+                <span class="hero-tag">Summer Release 2026</span>
+                <h1>Upgrade Your Digital Workspace</h1>
+                <p>Discover the finest select products curated for professionals and creators worldwide. Powered by our mock payment API.</p>
+                <button class="hero-cta-btn" id="btn-hero-shop">Explore Collection</button>
+            </div>
+        </section>
+
+        <!-- Filters Section -->
+        <section class="filters-container">
+            <div class="filter-group">
+                <label for="filter-category"><i class="fa-solid fa-list"></i> Category</label>
+                <select id="filter-category">
+                    <option value="">All Categories</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <label for="filter-brand"><i class="fa-solid fa-copyright"></i> Brand</label>
+                <select id="filter-brand">
+                    <option value="">All Brands</option>
+                </select>
+            </div>
+
+            <div class="filter-group">
+                <label for="sort-by"><i class="fa-solid fa-arrow-down-wide-short"></i> Sort By</label>
+                <select id="sort-by">
+                    <option value="nameAsc">Alphabetical (A-Z)</option>
+                    <option value="nameDesc">Alphabetical (Z-A)</option>
+                    <option value="priceAsc">Price: Low to High</option>
+                    <option value="priceDesc">Price: High to Low</option>
+                </select>
+            </div>
+        </section>
+
+        <!-- Catalog View -->
+        <section class="catalog-section" id="section-catalog">
+            <div class="section-title">
+                <h2>Featured Products</h2>
+                <span class="results-meta" id="results-meta">Showing 0 products</span>
+            </div>
+            
+            <!-- Products Grid -->
+            <div class="products-grid" id="products-grid">
+                <!-- Skeleton Loader will show here first -->
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination-container" id="pagination">
+                <!-- Dynamic pagination buttons -->
+            </div>
+        </section>
+
+        <!-- Orders View (Hidden by default) -->
+        <section class="orders-section hide" id="section-orders">
+            <div class="section-title">
+                <h2>Your Order History</h2>
+                <button class="text-btn" id="btn-back-to-shop"><i class="fa-solid fa-arrow-left"></i> Back to Shop</button>
+            </div>
+            <div class="orders-list" id="orders-list">
+                <!-- Dynamic order items -->
+            </div>
+        </section>
+    </main>
+
+    <!-- Cart Sidebar Drawer -->
+    <div id="cart-drawer" class="cart-drawer">
+        <div class="drawer-overlay" id="cart-overlay"></div>
+        <div class="drawer-content">
+            <div class="drawer-header">
+                <h3>Shopping Bag</h3>
+                <button id="btn-cart-close" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="drawer-body" id="cart-items-container">
+                <!-- Dynamic cart items list -->
+            </div>
+            
+            <div class="drawer-footer">
+                <div class="subtotal-row">
+                    <span>Est. Subtotal</span>
+                    <span id="cart-subtotal" class="subtotal-val">$0.00</span>
+                </div>
+                <button id="btn-checkout" class="checkout-btn" disabled>Proceed to Checkout</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal (Sign In / Sign Up) -->
+    <div id="auth-modal" class="modal">
+        <div class="modal-overlay" id="auth-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="btn-auth-close"><i class="fa-solid fa-xmark"></i></button>
+            
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="tab-login">Login</button>
+                <button class="auth-tab" id="tab-register">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <form id="form-login" class="auth-form active">
+                <div class="form-group">
+                    <label for="login-email">Email Address</label>
+                    <input type="email" id="login-email" required placeholder="name@domain.com">
+                </div>
+                <div class="form-group">
+                    <label for="login-password">Password</label>
+                    <input type="password" id="login-password" required placeholder="••••••••">
+                </div>
+                <button type="submit" class="auth-submit-btn">Login to Account</button>
+            </form>
+
+            <!-- Register Form -->
+            <form id="form-register" class="auth-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="reg-firstname">First Name</label>
+                        <input type="text" id="reg-firstname" required placeholder="John">
+                    </div>
+                    <div class="form-group">
+                        <label for="reg-lastname">Last Name</label>
+                        <input type="text" id="reg-lastname" required placeholder="Doe">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="reg-email">Email Address</label>
+                    <input type="email" id="reg-email" required placeholder="name@domain.com">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password</label>
+                    <input type="password" id="reg-password" required placeholder="At least 6 characters (uppercase, digit, symbol)">
+                </div>
+                <div class="form-group">
+                    <label for="reg-address">Street Address</label>
+                    <input type="text" id="reg-address" required placeholder="123 Main St">
+                </div>
+                <div class="form-group">
+                    <label for="reg-city">City</label>
+                    <input type="text" id="reg-city" required placeholder="Dhaka">
+                </div>
+                <button type="submit" class="auth-submit-btn">Create Account</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Checkout Modal -->
+    <div id="checkout-modal" class="modal">
+        <div class="modal-overlay" id="checkout-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="btn-checkout-close"><i class="fa-solid fa-xmark"></i></button>
+            <div class="modal-header">
+                <h3>Delivery & Shipping</h3>
+            </div>
+            
+            <form id="form-checkout">
+                <div class="form-group">
+                    <label for="ship-street">Street Address</label>
+                    <input type="text" id="ship-street" required placeholder="123 Main St">
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ship-city">City</label>
+                        <input type="text" id="ship-city" required placeholder="Dhaka">
+                    </div>
+                    <div class="form-group">
+                        <label for="ship-postal">Postal Code</label>
+                        <input type="text" id="ship-postal" required placeholder="1212">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="ship-country">Country</label>
+                    <input type="text" id="ship-country" required placeholder="Bangladesh" value="Bangladesh">
+                </div>
+                
+                <div class="checkout-summary">
+                    <div class="summary-line">
+                        <span>Items Total:</span>
+                        <span id="checkout-items-total">$0.00</span>
+                    </div>
+                    <div class="summary-line highlight">
+                        <span>Total Payable:</span>
+                        <span id="checkout-grand-total">$0.00</span>
+                    </div>
+                </div>
+                
+                <button type="submit" class="auth-submit-btn">Place Order & Continue to Payment</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Payment Modal -->
+    <div id="payment-modal" class="modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content payment-content">
+            <div class="payment-icon"><i class="fa-solid fa-credit-card"></i></div>
+            <h3>Mock Payment Gateway</h3>
+            <p>Order Placed Successfully! Processing Mock Transaction for Order #<span id="payment-order-id">-</span>.</p>
+            
+            <div class="amount-badge">
+                Amount Due: <span id="payment-amount">$0.00</span>
+            </div>
+
+            <div class="payment-actions">
+                <button id="btn-pay-success" class="pay-btn success-btn"><i class="fa-solid fa-circle-check"></i> Simulate Payment Success</button>
+                <button id="btn-pay-fail" class="pay-btn fail-btn"><i class="fa-solid fa-circle-xmark"></i> Simulate Payment Failure</button>
+            </div>
+            <p class="payment-hint">This simulated checkout maps to the abstract <code>IPaymentService</code> backend.</p>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="main-footer">
+        <div class="footer-container">
+            <p>&copy; 2026 ApexShop. Crafted using Clean Architecture and Vanilla JavaScript.</p>
+        </div>
+    </footer>
+
+    <!-- Custom Script -->
+    <script src="app.js"></script>
+</body>
+</html>
